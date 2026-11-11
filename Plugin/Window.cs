@@ -208,7 +208,7 @@ namespace SpecialOrdersMod
 				}
 			}
 			GUILayout.EndScrollView();
-			GUILayout.Label("Press Esc to close.", sHint);
+			GUILayout.Label("Press Esc" + (SpecialOrdersPlugin.OrdersKey.Value.MainKey != KeyCode.None ? " or " + SpecialOrdersPlugin.OrdersKey.Value : "") + " to close.", sHint);
 		}
 
 		private static string PayHint()

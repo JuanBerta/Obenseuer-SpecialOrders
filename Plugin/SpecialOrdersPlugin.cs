@@ -36,6 +36,7 @@ namespace SpecialOrdersMod
 		internal static ConfigEntry<int> InvoiceDays, MaxOpenOrdersPerShop, MaxItemAmount;
 		internal static ConfigEntry<bool> HagglingDiscount;
 		internal static ConfigEntry<string> OptionText;
+		internal static ConfigEntry<bool> ArrivalNotice, MailboxHint;
 
 		internal const string MailPrefix = "Special order";
 
@@ -43,7 +44,9 @@ namespace SpecialOrdersMod
 		{
 			Instance = this;
 			ConfigDescription D(string t, int o, AcceptableValueBase r = null) { return new ConfigDescription(t, r, new ConfigurationManagerAttributes { Order = o }); }
-			OrdersKey = Config.Bind("General", "OrdersListKey", KeyboardShortcut.Empty, D("Optional key to see your orders on the way anywhere (not set by default). Ordering itself is a conversation option with the shopkeeper.", 100));
+			OrdersKey = Config.Bind("General", "DeliveriesKey", new KeyboardShortcut(KeyCode.F8), D("Shows your orders on the way, anywhere (you can't order with it: ordering is a conversation option with the shopkeeper). Clear it to turn it off.", 100));
+			ArrivalNotice = Config.Bind("General", "ArrivalNotification", true, D("Show a notification when a special order arrives.", 98));
+			MailboxHint = Config.Bind("General", "MailboxHint", true, D("Looking at a mailbox or parcel locker shows when your next special order arrives.", 97));
 			OptionText = Config.Bind("General", "ConversationOption", "I'd like to place a special order.", D("The conversation option shopkeepers get.", 95));
 			Kinds = Config.Bind("General", "WhatCanBeOrdered", OrderKinds.Both, D("Furniture (from furniture shops), Items (from traders) or Both.", 90));
 			Payment = Config.Bind("Payment", "PaymentMode", PayModes.Both, D("UpFront: pay when you order. Invoice: the game sends you an invoice to pay later. Both: you choose for each order.", 100));
@@ -66,6 +69,9 @@ namespace SpecialOrdersMod
 			h.PatchAll(typeof(BlockBool));
 			h.PatchAll(typeof(BlockAxis));
 			h.PatchAll(typeof(Talk));
+			h.PatchAll(typeof(MailHooks));
+			MailController.MailReceived += name => Arrived(name, false);
+			MailController.PackageReceived += name => Arrived(name, true);
 			Logger.LogInfo("Special Orders loaded.");
 		}
 
@@ -250,6 +256,36 @@ namespace SpecialOrdersMod
 			int at = body.LastIndexOf(" (from ");
 			if (at > 0 && body.EndsWith(")")) { shop = body.Substring(at + 7, body.Length - at - 8); body = body.Substring(0, at); }
 			return new OnTheWay { What = body, Shop = shop, Minutes = minutes, Arrived = arrived };
+		}
+
+		private static void Arrived(string mailName, bool locker)
+		{
+			try
+			{
+				if (!ArrivalNotice.Value || string.IsNullOrEmpty(mailName) || !mailName.StartsWith(MailPrefix)) return;
+				var o = Parse(mailName, 0, true);
+				Notify("Special order arrived", o.What + (o.Shop.Length > 0 ? " from " + o.Shop : "") + " is waiting at your " + (locker ? "parcel locker" : "mailbox") + ".");
+			}
+			catch (Exception) { }
+		}
+
+		// "next arrives in 5h", "1 waiting", for the mailbox / parcel locker text.
+		internal static string DeliverySummary(bool locker)
+		{
+			int waiting = 0, coming = 0, next = int.MaxValue;
+			try
+			{
+				var mc = MailController.instance;
+				foreach (var m in locker ? mc.receivedPackages : mc.receivedMail)
+					if (m != null && m.mailName != null && m.mailName.StartsWith(MailPrefix)) waiting++;
+				foreach (var o in OrdersOnTheWay())
+					if (!o.Arrived) { coming++; next = Mathf.Min(next, o.Minutes); }
+			}
+			catch (Exception) { }
+			var parts = new List<string>();
+			if (waiting > 0) parts.Add(waiting + " special order" + (waiting > 1 ? "s" : "") + " here");
+			if (coming > 0) parts.Add(coming + " on the way, next in " + When(next));
+			return string.Join(", ", parts.ToArray());
 		}
 
 		internal static int OpenOrdersFrom(string shop)

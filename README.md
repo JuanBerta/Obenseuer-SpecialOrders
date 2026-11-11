@@ -9,7 +9,7 @@ Order furniture and items that a shop doesn't have in stock right now, and get t
 - **Rarer things take longer:** 1-2 in-game days, plus up to 2 days for the rarest.
 - **Pay up front, by invoice, or choose each time.** An invoice is the game's own (pay it within 7 days at a payment machine) and costs +10%.
 - **Delivered by the game's own mail**, to your mailbox or the parcel locker (your choice, for furniture and items separately). Delivery timers are the game's and are saved with your game. Furniture arrives ready to place, like when you buy it.
-- **On the way** list in the same window: what's coming, from where, and when. (Optionally, set a key in the config to see it anywhere.)
+- **Know when it's coming:** the order window lists what's on the way, from where and when; **F8** shows that list anywhere (it can't order). You get a notification when an order arrives, and looking at your mailbox or the parcel locker shows what's waiting and when the next one arrives.
 - Up to 3 orders on the way per shop at a time.
 - With **Haggling**, your Haggling discount applies to orders too.
 
