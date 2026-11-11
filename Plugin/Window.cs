@@ -243,6 +243,7 @@ namespace SpecialOrdersMod
 		}
 
 		private static readonly Dictionary<string, int> amounts = new Dictionary<string, int>();
+		private static readonly Dictionary<string, string> amountText = new Dictionary<string, string>();
 
 		private static void Body(bool atShop)
 		{
@@ -317,11 +318,25 @@ namespace SpecialOrdersMod
 			if (o.Item != null)
 			{
 				string key = o.Name;
+				int max = SpecialOrdersPlugin.MaxItemAmount.Value;
 				if (!amounts.TryGetValue(key, out amount)) amount = 1;
-				if (GUILayout.Button("-", sButton, GUILayout.Width(26))) amount = Mathf.Max(1, amount - 1);
-				GUILayout.Label("x" + amount, sText, GUILayout.Width(34));
-				if (GUILayout.Button("+", sButton, GUILayout.Width(26))) amount = Mathf.Min(SpecialOrdersPlugin.MaxItemAmount.Value, amount + 1);
+				string text;
+				if (!amountText.TryGetValue(key, out text)) text = amount.ToString();
+				bool shift = Event.current.shift;   // Shift: steps of 10
+				if (GUILayout.Button("-", sButton, GUILayout.Width(26))) { amount = Mathf.Max(1, amount - (shift ? 10 : 1)); text = amount.ToString(); }
+				GUILayout.Label("x", sText, GUILayout.Width(12));
+				string typed = GUILayout.TextField(text, 4, sField, GUILayout.Width(56));
+				if (typed != text)
+				{
+					string digits = new string(typed.Where(char.IsDigit).ToArray());
+					text = digits;
+					int v;
+					if (int.TryParse(digits, out v)) amount = Mathf.Clamp(v, 1, max);
+				}
+				if (GUILayout.Button("+", sButton, GUILayout.Width(26))) { amount = Mathf.Min(max, amount + (shift ? 10 : 1)); text = amount.ToString(); }
+				if (GUILayout.Button("MAX", sButton, GUILayout.Width(44))) { amount = max; text = amount.ToString(); }
 				amounts[key] = amount;
+				amountText[key] = text;
 				o.Amount = amount;
 			}
 			GUILayout.EndHorizontal();

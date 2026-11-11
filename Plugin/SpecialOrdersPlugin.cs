@@ -17,7 +17,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.4")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.5")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
@@ -61,7 +61,7 @@ namespace SpecialOrdersMod
 			FurnitureMaxFee = Config.Bind("Fees", "FurnitureMaxFee", 1.0f, D("Ordering fee for the rarest furniture (1.0 = +100%, double the price). Fees in between follow how rarely the shop stocks it.", 95, new AcceptableValueRange<float>(0f, 10f)));
 			ItemCommonFee = Config.Bind("Fees", "ItemCommonFee", 0.5f, D("Ordering fee for a trader's common items (0.5 = +50%). Items cost more to order than furniture.", 90, new AcceptableValueRange<float>(0f, 10f)));
 			ItemRareFee = Config.Bind("Fees", "ItemRareFee", 1.5f, D("Ordering fee for a trader's rare items (1.5 = +150%).", 85, new AcceptableValueRange<float>(0f, 10f)));
-			MaxItemAmount = Config.Bind("Fees", "MaxItemAmount", 10, D("Most items of one kind in one order.", 80, new AcceptableValueRange<int>(1, 100)));
+			MaxItemAmount = Config.Bind("Fees", "MaxItemsPerOrder", 100, D("Most items of one kind in one order. Type the amount in the box, use - and + (Shift for steps of 10), or MAX.", 80, new AcceptableValueRange<int>(1, 9999)));
 			MinDays = Config.Bind("Delivery", "MinDays", 1f, D("Fewest in-game days for a delivery.", 100, new AcceptableValueRange<float>(0f, 14f)));
 			MaxDays = Config.Bind("Delivery", "MaxDays", 2f, D("Most in-game days for a common thing.", 95, new AcceptableValueRange<float>(0f, 14f)));
 			RareExtraDays = Config.Bind("Delivery", "RareExtraDays", 2f, D("Extra days for the rarest things (scaled by rarity).", 90, new AcceptableValueRange<float>(0f, 14f)));
