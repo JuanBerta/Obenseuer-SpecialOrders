@@ -42,7 +42,6 @@ namespace SpecialOrdersMod
 					if (GameController.instance != null) GameController.instance.ControlsDisabled(holder, true, true);
 				}
 				catch (Exception e) { SpecialOrdersPlugin.Warn("Window controls: " + e.Message); }
-				SpecialOrdersPlugin.RefreshOffers(SpecialOrdersPlugin.CurrentShop());
 			}
 			else
 			{
@@ -143,17 +142,7 @@ namespace SpecialOrdersMod
 		{
 			if (!SpecialOrdersPlugin.InGame) return;
 			bool atShop = SpecialOrdersPlugin.CurrentShop() != null;
-			if (!Open)
-			{
-				if (atShop && SpecialOrdersPlugin.ShowHint.Value && SpecialOrdersPlugin.ShopName != null && SpecialOrdersPlugin.Offers.Count > 0)
-				{
-					InitStyles();
-					string t = "[" + SpecialOrdersPlugin.OrdersKey.Value + "]  " + Spaced("Special orders");
-					Vector2 size = sHintBox.CalcSize(new GUIContent(t));
-					GUI.Label(new Rect((Screen.width - size.x) / 2f, 12f, size.x, size.y), t, sHintBox);
-				}
-				return;
-			}
+			if (!Open) return;
 			InitStyles();
 			if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape) { CloseLater = true; Event.current.Use(); }
 			float w = Mathf.Min(760f, Screen.width - 40f), h = Mathf.Min(700f, Screen.height - 80f);
@@ -187,7 +176,7 @@ namespace SpecialOrdersMod
 			if (!atShop)
 			{
 				GUILayout.Space(6);
-				GUILayout.Label("Open a furniture shop's menu or a trader's trade screen and press " + SpecialOrdersPlugin.OrdersKey.Value + " to order things they don't have in stock.", sHint);
+				GUILayout.Label("To order, talk to a shopkeeper (a trader or a furniture shop) and pick \"" + SpecialOrdersPlugin.OptionText.Value + "\".", sHint);
 			}
 			else
 			{
@@ -219,7 +208,7 @@ namespace SpecialOrdersMod
 				}
 			}
 			GUILayout.EndScrollView();
-			GUILayout.Label("Press Esc or " + SpecialOrdersPlugin.OrdersKey.Value + " to close.", sHint);
+			GUILayout.Label("Press Esc to close.", sHint);
 		}
 
 		private static string PayHint()

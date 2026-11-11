@@ -34,7 +34,8 @@ namespace SpecialOrdersMod
 		internal static ConfigEntry<float> FurnitureMinFee, FurnitureMaxFee, ItemCommonFee, ItemRareFee, InvoiceExtraFee;
 		internal static ConfigEntry<float> MinDays, MaxDays, RareExtraDays;
 		internal static ConfigEntry<int> InvoiceDays, MaxOpenOrdersPerShop, MaxItemAmount;
-		internal static ConfigEntry<bool> HagglingDiscount, ShowHint;
+		internal static ConfigEntry<bool> HagglingDiscount;
+		internal static ConfigEntry<string> OptionText;
 
 		internal const string MailPrefix = "Special order";
 
@@ -42,8 +43,8 @@ namespace SpecialOrdersMod
 		{
 			Instance = this;
 			ConfigDescription D(string t, int o, AcceptableValueBase r = null) { return new ConfigDescription(t, r, new ConfigurationManagerAttributes { Order = o }); }
-			OrdersKey = Config.Bind("General", "OrdersKey", new KeyboardShortcut(KeyCode.F8), D("Opens the order catalogue at a shop, or your orders on the way anywhere else.", 100));
-			ShowHint = Config.Bind("General", "ShowHint", true, D("Show a \"Special orders\" hint while a shop's screen is open.", 95));
+			OrdersKey = Config.Bind("General", "OrdersListKey", KeyboardShortcut.Empty, D("Optional key to see your orders on the way anywhere (not set by default). Ordering itself is a conversation option with the shopkeeper.", 100));
+			OptionText = Config.Bind("General", "ConversationOption", "I'd like to place a special order.", D("The conversation option shopkeepers get.", 95));
 			Kinds = Config.Bind("General", "WhatCanBeOrdered", OrderKinds.Both, D("Furniture (from furniture shops), Items (from traders) or Both.", 90));
 			Payment = Config.Bind("Payment", "PaymentMode", PayModes.Both, D("UpFront: pay when you order. Invoice: the game sends you an invoice to pay later. Both: you choose for each order.", 100));
 			InvoiceExtraFee = Config.Bind("Payment", "InvoiceExtraFee", 0.1f, D("Paying by invoice costs this much more (0.1 = +10%).", 90, new AcceptableValueRange<float>(0f, 2f)));
@@ -64,6 +65,7 @@ namespace SpecialOrdersMod
 			var h = new Harmony("JuanBerta.Obenseuer.SpecialOrders");
 			h.PatchAll(typeof(BlockBool));
 			h.PatchAll(typeof(BlockAxis));
+			h.PatchAll(typeof(Talk));
 			Logger.LogInfo("Special Orders loaded.");
 		}
 
@@ -93,20 +95,17 @@ namespace SpecialOrdersMod
 		internal static string ShopKey;
 		internal static List<Offer> Offers = new List<Offer>();
 
-		private static float nextShopCheck;
-		private static object lastShop;
 
-		// Furniture shop menu or trade screen open right now.
-		internal static object CurrentShop()
+		// The shop the catalogue was opened for (from the shopkeeper's conversation), or null for "orders on the way".
+		internal static object WindowShop;
+		internal static object CurrentShop() { return WindowShop; }
+
+		internal static void OpenFor(object shop)
 		{
-			try
-			{
-				if (ShopController.instance != null && ShopController.instance.menuIsOpen && ShopController.instance.currentShop is FurnitureShop)
-					return ShopController.instance.currentShop;
-				if (TradePanel.instance != null && TradePanel.instance.activeTrade != null) return TradePanel.instance.activeTrade;
-			}
-			catch (Exception) { }
-			return null;
+			WindowShop = shop;
+			RefreshOffers(shop);
+			Window.ResetView();
+			Window.SetOpen(true);
 		}
 
 		internal static bool AllowsFurniture { get { return Kinds.Value != OrderKinds.Items; } }
@@ -354,13 +353,11 @@ namespace SpecialOrdersMod
 			try
 			{
 				if (!InGame) { if (Window.Open) Window.SetOpen(false); return; }
-				object shop = CurrentShop();
-				if (shop != lastShop || Time.unscaledTime >= nextShopCheck)
+				if (OrdersKey.Value.MainKey != KeyCode.None && OrdersKey.Value.IsDown())
 				{
-					if (shop != lastShop) { RefreshOffers(shop); lastShop = shop; Window.ResetView(); }
-					nextShopCheck = Time.unscaledTime + 1f;
+					if (Window.Open) Window.SetOpen(false);
+					else { WindowShop = null; RefreshOffers(null); Window.SetOpen(true); }
 				}
-				if (OrdersKey.Value.IsDown()) Window.SetOpen(!Window.Open);
 				else if (Window.Open && Input.GetKeyDown(KeyCode.Escape)) Window.CloseLater = true;
 			}
 			catch (Exception e) { Warn("Special Orders: " + e.Message); }
