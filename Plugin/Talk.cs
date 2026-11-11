@@ -26,35 +26,81 @@ namespace SpecialOrdersMod
 		[HarmonyPostfix]
 		private static void Unregister(Trade __instance) { if (talkingTrade == __instance) talkingTrade = null; }
 
-		// The shop run by the person you're talking to.
-		private static object ShopOfConversant()
+		// The shop run by the person you're talking to: the trader whose conversation registered StartTrade,
+		// else the stall that person owns, else the nearest shop to you (you're standing at its counter).
+		private static object ShopOfConversant(out string why)
 		{
+			why = "";
+			if (talkingTrade != null && SpecialOrdersPlugin.AllowsItems) { why = "registered trade"; return talkingTrade; }
 			Transform npc = null;
 			try { npc = DialogueManager.currentConversant; } catch (Exception) { }
-			if (talkingTrade != null && SpecialOrdersPlugin.AllowsItems) return talkingTrade;
-			if (npc == null) return null;
-			Vector3 at = npc.position;
-			object best = null;
-			float bestD = float.MaxValue;
+			int id = -1;
+			string first = null, full = null;
+			try
+			{
+				NPCInfo info = npc != null ? (npc.GetComponentInParent<NPCInfo>() ?? npc.GetComponentInChildren<NPCInfo>()) : null;
+				if (info != null && info.character != null)
+				{
+					id = info.character.ID;
+					first = info.character.Name;
+					full = info.character.FullName;
+				}
+			}
+			catch (Exception) { }
+			Vector3 me = PlayerLocator.instance != null ? PlayerLocator.instance.transform.position : (npc != null ? npc.position : Vector3.zero);
+			Trade bestTrade = null; float tradeD = float.MaxValue;
+			if (SpecialOrdersPlugin.AllowsItems)
+				foreach (Trade t in UnityEngine.Object.FindObjectsByType<Trade>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+				{
+					if (id > 0 && t.owner != null && t.owner.ID == id) { why = "owner id"; return t; }
+					if (NameMatch(t, first, full)) { why = "name"; return t; }
+					float d = Vector3.Distance(t.transform.position, me);
+					if (d < tradeD) { tradeD = d; bestTrade = t; }
+				}
+			FurnitureShop bestShop = null; float shopD = float.MaxValue;
 			if (SpecialOrdersPlugin.AllowsFurniture)
 				foreach (FurnitureShop fs in UnityEngine.Object.FindObjectsByType<FurnitureShop>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
 				{
-					float d = Vector3.Distance(fs.transform.position, at);
-					if (d < 6f && d < bestD) { best = fs; bestD = d; }
+					float d = Vector3.Distance(fs.transform.position, me);
+					if (d < shopD) { shopD = d; bestShop = fs; }
 				}
-			if (best == null && SpecialOrdersPlugin.AllowsItems)
+			why = "npc " + (full ?? first ?? "?") + " id " + id + ", nearest trade " + (bestTrade != null ? "'" + bestTrade.title + "' at " + tradeD.ToString("0.0") + " m" : "none") +
+			      ", nearest furniture shop " + (bestShop != null ? "'" + bestShop.title + "' at " + shopD.ToString("0.0") + " m" : "none");
+			float range = SpecialOrdersPlugin.ShopRange.Value;
+			if (bestTrade != null && tradeD <= range && tradeD <= shopD) return bestTrade;
+			if (bestShop != null && shopD <= range) return bestShop;
+			return null;
+		}
+
+		// "Sirkku's Flower Stall" belongs to Sirkku; also the stall's owner name.
+		private static bool NameMatch(Trade t, string first, string full)
+		{
+			try
 			{
-				int id = -1;
-				try { NPCInfo info = npc.GetComponentInParent<NPCInfo>(); if (info != null && info.character != null) id = info.character.ID; } catch (Exception) { }
-				foreach (Trade t in UnityEngine.Object.FindObjectsByType<Trade>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+				string owner = t.owner != null ? t.owner.name : null;
+				if (!string.IsNullOrEmpty(owner) && owner != "Name" && ((full != null && owner == full) || (first != null && owner.StartsWith(first + " ")) || owner == first)) return true;
+				string title = t.title ?? "";
+				if (string.IsNullOrEmpty(first) || first.Length < 3) return false;
+				if (title.StartsWith(first + "'", StringComparison.OrdinalIgnoreCase) || title.StartsWith(first + "s'", StringComparison.OrdinalIgnoreCase)) return true;
+				// spelling differences like Sirku/Sirkku, Selma/Selmas: compare the word before the apostrophe
+				int ap = title.IndexOf('\'');
+				if (ap > 2)
 				{
-					bool owner = id > 0 && t.owner != null && t.owner.ID == id;
-					float d = Vector3.Distance(t.transform.position, at);
-					if (owner) { best = t; break; }
-					if (d < 8f && d < bestD) { best = t; bestD = d; }
+					string word = title.Substring(0, ap).TrimEnd('s', 'S');
+					string f = first.TrimEnd('s', 'S');
+					if (Loose(word).Equals(Loose(f), StringComparison.OrdinalIgnoreCase)) return true;
 				}
 			}
-			return best;
+			catch (Exception) { }
+			return false;
+		}
+
+		private static string Loose(string w)
+		{
+			var sb = new System.Text.StringBuilder();
+			char last = '\0';
+			foreach (char c in w.ToLowerInvariant()) { if (c != last) sb.Append(c); last = c; }   // kk -> k
+			return sb.ToString();
 		}
 
 		private static string ShopLabel(object shop)
@@ -98,13 +144,13 @@ namespace SpecialOrdersMod
 				foreach (Response r in state.pcResponses) if (r != null && ours.ContainsKey(r)) return;   // already added
 				bool shopMenu = LooksLikeShopMenu(state.pcResponses);
 				if (!shopMenu && menusThisConversation > 1) return;   // the first menu, or one about trading
-				if (!shopLooked)
+				if (shopThisConversation == null)
 				{
+					string why;
+					shopThisConversation = ShopOfConversant(out why);
+					if (!shopLooked || shopThisConversation != null)
+						SpecialOrdersPlugin.Log("Conversation: " + (shopThisConversation == null ? "no shop (" + why + ")" : "shop " + ShopLabel(shopThisConversation) + " (" + why + ")"));
 					shopLooked = true;
-					shopThisConversation = ShopOfConversant();
-					string who = "?";
-					try { who = DialogueManager.currentConversant != null ? DialogueManager.currentConversant.name : "none"; } catch (Exception) { }
-					SpecialOrdersPlugin.Log("Conversation with " + who + ": " + (shopThisConversation == null ? "no shop found nearby" : "shop " + ShopLabel(shopThisConversation)));
 				}
 				object shop = shopThisConversation;
 				if (shop == null) return;

@@ -17,7 +17,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.2")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.4")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
@@ -37,6 +37,7 @@ namespace SpecialOrdersMod
 		internal static ConfigEntry<bool> HagglingDiscount;
 		internal static ConfigEntry<string> OptionText;
 		internal static ConfigEntry<bool> ArrivalNotice, MailboxHint, ShopButton, StallTalk;
+		internal static ConfigEntry<float> ShopRange;
 
 		internal const string MailPrefix = "Special order";
 
@@ -45,6 +46,7 @@ namespace SpecialOrdersMod
 			Instance = this;
 			ConfigDescription D(string t, int o, AcceptableValueBase r = null) { return new ConfigDescription(t, r, new ConfigurationManagerAttributes { Order = o }); }
 			OrdersKey = Config.Bind("General", "DeliveriesKey", new KeyboardShortcut(KeyCode.F8), D("Shows your orders on the way, anywhere (you can't order with it: ordering is a conversation option with the shopkeeper). Clear it to turn it off.", 100));
+			ShopRange = Config.Bind("General", "ShopSearchRange", 15f, D("How close (in meters) you must be to a trader's stall or a furniture shop for the special order option to appear in a conversation.", 96, new AcceptableValueRange<float>(2f, 20f)));
 			StallTalk = Config.Bind("General", "CounterConversation", true, D("Using a market stall or a furniture shop counter first asks what you want: trade, place a special order, or goodbye (those shops have no conversation of their own).", 97));
 			ShopButton = Config.Bind("General", "ShopScreenButton", false, D("Also show a \"Special order\" button on trade screens and furniture shop menus.", 96));
 			ArrivalNotice = Config.Bind("General", "ArrivalNotification", true, D("Show a notification when a special order arrives.", 98));
