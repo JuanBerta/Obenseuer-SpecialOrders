@@ -1,0 +1,40 @@
+=== SHORT DESCRIPTION ===
+Order furniture and items a shop doesn't have in stock, and get them delivered a few days later. Ask the shopkeeper, pick from everything they can stock, pay now or by invoice. Rarer things cost more and take longer.
+
+=== FULL DESCRIPTION (BBCode) ===
+[size=5][b]Special Orders[/b][/size]
+No more waiting for a restock to finally drop that Malter or Biogas Reactor. Order what a shop doesn't have in stock right now, and get it delivered a few days later.
+
+[size=4][b]Features[/b][/size]
+[list]
+[*][b]Ask the shopkeeper.[/b] Talk to a trader or the person at a furniture shop and pick [i]"I'd like to place a special order."[/i] The order catalogue opens with everything that shop [b]can[/b] stock, including what isn't in stock now. Only that shop's own lists, so you still go to the right merchant.
+[*][b]Furniture, items, or both:[/b] choose in the settings what can be ordered. Furniture comes from furniture shops, items from traders.
+[*][b]Rarer things cost more.[/b] Furniture: a +25% ordering fee for pieces the shop almost always has, up to +100% for the rarest, based on how often the shop really stocks each piece. Items cost more to order: +50% for a trader's common stock, +150% for its rare stock.
+[*][b]Rarer things take longer:[/b] 1-2 in-game days, plus up to 2 days for the rarest.
+[*][b]Pay up front, by invoice, or choose each time.[/b] The invoice is the game's own (pay it within 7 days) and costs +10%.
+[*][b]Delivered by the game's own mail[/b], to your mailbox or the parcel locker (your choice, for furniture and items separately). Delivery timers are the game's and are saved with your game. Furniture arrives ready to place, like when you buy it.
+[*][b]Know when it's coming:[/b] a notification when an order arrives, your mailbox and parcel locker show what's waiting and when the next one arrives, and [b]F8[/b] shows your orders on the way anywhere.
+[*]Up to 3 orders on the way per shop at a time, and up to 10 of one item per order.
+[*]The order window is in the game's own style; it frees the mouse and pauses the game's controls while open, and Esc closes it.
+[/list]
+Every number can be changed in the config file or with ConfigurationManager.
+
+[size=4][b]Requirements[/b][/size]
+[list]
+[*]BepInEx 6 (Unity.Mono, x64)
+[/list]
+
+[size=4][b]Installation[/b][/size]
+Extract the archive into the game folder (the one with Obenseuer.exe), so the DLL ends up in [i]BepInEx\plugins\Obenseuer-SpecialOrders\[/i].
+
+[size=4][b]Works well with[/b][/size]
+[list]
+[*][b]Haggling[/b]: your Haggling discount applies to orders too.
+[*][b]Loot Map[/b]: find which shops sell the furniture or item you want.
+[*][b]Scam Artist[/b], [b]Bribery+[/b], [b]Stealth[/b] and [b]Scavenger[/b].
+[/list]
+
+[size=4][b]Source[/b][/size]
+https://github.com/JuanBerta/Obenseuer-SpecialOrders
+
+Idea from the Obenseuer Discord community. Made by JuanBerta, with AI assistance (Claude).
