@@ -16,7 +16,7 @@ namespace SpecialOrdersMod
 	{
 		private static Trade talkingTrade;          // the trader whose conversation registered "StartTrade"
 		private static readonly Dictionary<Response, object> ours = new Dictionary<Response, object>();
-		private static readonly Regex ShopWords = new Regex(@"\b(trade|buy|shop|sell|goods|wares|furniture|browse|look around|what do you have|see what)\b", RegexOptions.IgnoreCase);
+		private static readonly Regex ShopWords = new Regex(@"\b(trad|buy|shop|sell|sale|goods|ware|furnit|brows|look around|what do you have|see what|merchandise|stock)\w*", RegexOptions.IgnoreCase);
 
 		[HarmonyPatch(typeof(Trade), "RegisterFunction")]
 		[HarmonyPostfix]
@@ -50,10 +50,18 @@ namespace SpecialOrdersMod
 				{
 					bool owner = id > 0 && t.owner != null && t.owner.ID == id;
 					float d = Vector3.Distance(t.transform.position, at);
-					if (owner || (d < 4f && d < bestD)) { best = t; bestD = owner ? -1f : d; if (owner) break; }
+					if (owner) { best = t; break; }
+					if (d < 8f && d < bestD) { best = t; bestD = d; }
 				}
 			}
 			return best;
+		}
+
+		private static string ShopLabel(object shop)
+		{
+			if (shop is Trade t) return "trader '" + t.title + "' (" + t.name + ")";
+			if (shop is FurnitureShop f) return "furniture shop '" + f.title + "' (" + f.name + ")";
+			return shop.ToString();
 		}
 
 		private static bool LooksLikeShopMenu(Response[] responses)
@@ -70,19 +78,35 @@ namespace SpecialOrdersMod
 		}
 
 		private static int menusThisConversation;
+		private static object currentController;
+		private static object shopThisConversation;
+		private static bool shopLooked;
 
 		[HarmonyPatch(typeof(ConversationController), "GotoState")]
 		[HarmonyPrefix]
-		private static void GotoState(ConversationState state)
+		private static void GotoState(ConversationController __instance, ConversationState state)
 		{
 			try
 			{
+				if (!ReferenceEquals(__instance, currentController))
+				{
+					currentController = __instance;
+					menusThisConversation = 0; ours.Clear(); shopLooked = false; shopThisConversation = null;
+				}
 				if (state == null || state.pcResponses == null || state.pcResponses.Length == 0 || !SpecialOrdersPlugin.InGame) return;
 				menusThisConversation++;
 				foreach (Response r in state.pcResponses) if (r != null && ours.ContainsKey(r)) return;   // already added
 				bool shopMenu = LooksLikeShopMenu(state.pcResponses);
 				if (!shopMenu && menusThisConversation > 1) return;   // the first menu, or one about trading
-				object shop = ShopOfConversant();
+				if (!shopLooked)
+				{
+					shopLooked = true;
+					shopThisConversation = ShopOfConversant();
+					string who = "?";
+					try { who = DialogueManager.currentConversant != null ? DialogueManager.currentConversant.name : "none"; } catch (Exception) { }
+					SpecialOrdersPlugin.Log("Conversation with " + who + ": " + (shopThisConversation == null ? "no shop found nearby" : "shop " + ShopLabel(shopThisConversation)));
+				}
+				object shop = shopThisConversation;
 				if (shop == null) return;
 				var response = new Response(new FormattedText(SpecialOrdersPlugin.OptionText.Value), state.pcResponses[state.pcResponses.Length - 1].destinationEntry, true);
 				ours[response] = shop;

@@ -17,7 +17,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.1")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.2")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
