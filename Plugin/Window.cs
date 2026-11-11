@@ -22,6 +22,20 @@ namespace SpecialOrdersMod
 
 		internal static void ResetView() { scroll = Vector2.zero; search = ""; }
 
+		// A short counter conversation for shops that have none (market stalls, furniture shop counters).
+		internal static object DialogShop;
+		internal static string DialogSpeaker;
+		private static Action pending;
+
+		internal static void OpenDialog(object shop, string speaker)
+		{
+			DialogShop = shop;
+			DialogSpeaker = speaker;
+			SetOpen(true);
+		}
+
+		private static void Choose(Action a) { pending = a; }
+
 		// While open the window owns the mouse: the game's controls and the shop screen underneath are paused.
 		internal static void SetOpen(bool open)
 		{
@@ -57,8 +71,26 @@ namespace SpecialOrdersMod
 
 		internal static void LateTick()
 		{
-			if (CloseLater) { CloseLater = false; SetOpen(false); return; }
-			if (!Open) return;
+			if (pending != null)
+			{
+				Action a = pending; pending = null;
+				object shop = DialogShop; DialogShop = null;
+				SetOpen(false);
+				try { a(); } catch (Exception e) { SpecialOrdersPlugin.Warn("Counter: " + e.Message); }
+				return;
+			}
+			if (CloseLater) { CloseLater = false; DialogShop = null; SetOpen(false); return; }
+			if (!Open)
+			{
+				object screen = SpecialOrdersPlugin.ShopButton.Value ? SpecialOrdersPlugin.OpenShopScreen() : null;
+				if (screen == null) return;
+				InitStyles();
+				string label = Spaced("Special order");
+				Vector2 size = sTab.CalcSize(new GUIContent(label));
+				Rect b = new Rect((Screen.width - size.x - 24f) / 2f, 14f, size.x + 24f, size.y + 6f);
+				if (GUI.Button(b, label, sTab)) SpecialOrdersPlugin.OpenFor(screen);
+				return;
+			}
 			Cursor.lockState = CursorLockMode.None;
 			Cursor.visible = true;
 		}
@@ -142,9 +174,20 @@ namespace SpecialOrdersMod
 		{
 			if (!SpecialOrdersPlugin.InGame) return;
 			bool atShop = SpecialOrdersPlugin.CurrentShop() != null;
-			if (!Open) return;
+			if (!Open)
+			{
+				object screen = SpecialOrdersPlugin.ShopButton.Value ? SpecialOrdersPlugin.OpenShopScreen() : null;
+				if (screen == null) return;
+				InitStyles();
+				string label = Spaced("Special order");
+				Vector2 size = sTab.CalcSize(new GUIContent(label));
+				Rect b = new Rect((Screen.width - size.x - 24f) / 2f, 14f, size.x + 24f, size.y + 6f);
+				if (GUI.Button(b, label, sTab)) SpecialOrdersPlugin.OpenFor(screen);
+				return;
+			}
 			InitStyles();
 			if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape) { CloseLater = true; Event.current.Use(); }
+			if (DialogShop != null) { DrawDialog(); return; }
 			float w = Mathf.Min(760f, Screen.width - 40f), h = Mathf.Min(700f, Screen.height - 80f);
 			Rect r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
 			GUI.Box(r, GUIContent.none, sPanel);
@@ -154,6 +197,49 @@ namespace SpecialOrdersMod
 			GUILayout.BeginArea(new Rect(r.x + 16f, r.y + 62f, r.width - 32f, r.height - 74f));
 			Body(atShop);
 			GUILayout.EndArea();
+		}
+
+		private static GUIStyle sSpeaker, sLine, sOption;
+
+		private static void DrawDialog()
+		{
+			if (sSpeaker == null || sSpeaker.font != gameFont)
+			{
+				sSpeaker = new GUIStyle(GUI.skin.label) { font = gameFont, fontSize = 16, richText = true };
+				sSpeaker.normal.textColor = Ochre;
+				sLine = new GUIStyle(GUI.skin.label) { fontSize = 17, wordWrap = true, richText = true };
+				sLine.normal.textColor = Cream;
+				sOption = new GUIStyle(GUI.skin.label) { fontSize = 16, richText = true, padding = new RectOffset(10, 10, 5, 5) };
+				sOption.normal.textColor = new Color(0.86f, 0.82f, 0.74f);
+				sOption.hover.textColor = new Color(1f, 0.92f, 0.7f);
+				sOption.hover.background = Framed(new Color(Ochre.r, Ochre.g, Ochre.b, 0.28f), new Color(Ochre.r, Ochre.g, Ochre.b, 0.28f), 1);
+			}
+			object shop = DialogShop;
+			bool furniture = shop is FurnitureShop;
+			string[] options = { furniture ? "Let me see what you have." : "Let's trade.", SpecialOrdersPlugin.OptionText.Value, "Goodbye." };
+			Event e = Event.current;
+			if (e.type == EventType.KeyDown)
+			{
+				int k = e.keyCode >= KeyCode.Alpha1 && e.keyCode <= KeyCode.Alpha3 ? e.keyCode - KeyCode.Alpha1 : (e.keyCode >= KeyCode.Keypad1 && e.keyCode <= KeyCode.Keypad3 ? e.keyCode - KeyCode.Keypad1 : -1);
+				if (k >= 0) { Pick(shop, k); e.Use(); }
+			}
+			float w = Mathf.Min(820f, Screen.width - 40f), h = 210f;
+			Rect r = new Rect((Screen.width - w) / 2f, Screen.height - h - 60f, w, h);
+			GUI.Box(r, GUIContent.none, sPanel);
+			GUILayout.BeginArea(new Rect(r.x + 22f, r.y + 14f, r.width - 44f, r.height - 24f));
+			GUILayout.Label(DialogSpeaker ?? "", sSpeaker);
+			GUILayout.Label(furniture ? "Welcome! Looking for something in particular?" : "What can I get you?", sLine);
+			GUILayout.Space(8);
+			for (int i = 0; i < options.Length; i++)
+				if (GUILayout.Button((i + 1) + ". " + options[i], sOption)) Pick(shop, i);
+			GUILayout.EndArea();
+		}
+
+		private static void Pick(object shop, int i)
+		{
+			if (i == 0) Choose(() => Counter.OpenShopScreen(shop));
+			else if (i == 1) Choose(() => SpecialOrdersPlugin.OpenFor(shop));
+			else Choose(() => { });
 		}
 
 		private static readonly Dictionary<string, int> amounts = new Dictionary<string, int>();

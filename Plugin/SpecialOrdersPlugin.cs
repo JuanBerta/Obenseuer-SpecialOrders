@@ -17,7 +17,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.0")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.1")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
@@ -36,7 +36,7 @@ namespace SpecialOrdersMod
 		internal static ConfigEntry<int> InvoiceDays, MaxOpenOrdersPerShop, MaxItemAmount;
 		internal static ConfigEntry<bool> HagglingDiscount;
 		internal static ConfigEntry<string> OptionText;
-		internal static ConfigEntry<bool> ArrivalNotice, MailboxHint;
+		internal static ConfigEntry<bool> ArrivalNotice, MailboxHint, ShopButton, StallTalk;
 
 		internal const string MailPrefix = "Special order";
 
@@ -45,6 +45,8 @@ namespace SpecialOrdersMod
 			Instance = this;
 			ConfigDescription D(string t, int o, AcceptableValueBase r = null) { return new ConfigDescription(t, r, new ConfigurationManagerAttributes { Order = o }); }
 			OrdersKey = Config.Bind("General", "DeliveriesKey", new KeyboardShortcut(KeyCode.F8), D("Shows your orders on the way, anywhere (you can't order with it: ordering is a conversation option with the shopkeeper). Clear it to turn it off.", 100));
+			StallTalk = Config.Bind("General", "CounterConversation", true, D("Using a market stall or a furniture shop counter first asks what you want: trade, place a special order, or goodbye (those shops have no conversation of their own).", 97));
+			ShopButton = Config.Bind("General", "ShopScreenButton", false, D("Also show a \"Special order\" button on trade screens and furniture shop menus.", 96));
 			ArrivalNotice = Config.Bind("General", "ArrivalNotification", true, D("Show a notification when a special order arrives.", 98));
 			MailboxHint = Config.Bind("General", "MailboxHint", true, D("Looking at a mailbox or parcel locker shows when your next special order arrives.", 97));
 			OptionText = Config.Bind("General", "ConversationOption", "I'd like to place a special order.", D("The conversation option shopkeepers get.", 95));
@@ -70,6 +72,7 @@ namespace SpecialOrdersMod
 			h.PatchAll(typeof(BlockAxis));
 			h.PatchAll(typeof(Talk));
 			h.PatchAll(typeof(MailHooks));
+			h.PatchAll(typeof(Counter));
 			MailController.MailReceived += name => Arrived(name, false);
 			MailController.PackageReceived += name => Arrived(name, true);
 			Logger.LogInfo("Special Orders loaded.");
@@ -105,6 +108,19 @@ namespace SpecialOrdersMod
 		// The shop the catalogue was opened for (from the shopkeeper's conversation), or null for "orders on the way".
 		internal static object WindowShop;
 		internal static object CurrentShop() { return WindowShop; }
+
+		// A shop screen the game has open right now (trade screen or furniture shop menu), for the button.
+		internal static object OpenShopScreen()
+		{
+			try
+			{
+				if (TradePanel.instance != null && TradePanel.instance.activeTrade != null) return AllowsItems ? TradePanel.instance.activeTrade : null;
+				if (ShopController.instance != null && ShopController.instance.menuIsOpen && ShopController.instance.currentShop is FurnitureShop)
+					return AllowsFurniture ? ShopController.instance.currentShop : null;
+			}
+			catch (Exception) { }
+			return null;
+		}
 
 		internal static void OpenFor(object shop)
 		{

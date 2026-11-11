@@ -3,7 +3,7 @@
 Order furniture and items that a shop doesn't have in stock right now, and get them delivered a few days later. No more waiting for a restock to finally drop that Malter or Biogas Reactor.
 
 ## Features
-- **Ask the shopkeeper.** Talk to a trader or the person at a furniture shop and pick *"I'd like to place a special order."* The order catalogue opens with everything that shop *can* stock, including what isn't in stock now. Only that shop's own lists, so you still go to the right merchant.
+- **Ask the shopkeeper.** Talk to a trader or the person at a furniture shop and pick *"I'd like to place a special order."* Market stalls and furniture shop counters, which have no conversation of their own, get a short one: using them asks whether you want to trade, place a special order, or say goodbye. The order catalogue opens with everything that shop *can* stock, including what isn't in stock now. Only that shop's own lists, so you still go to the right merchant.
 - **Furniture, items, or both:** choose in the settings what can be ordered. Furniture comes from furniture shops, items from traders.
 - **Rarer things cost more.** Furniture: a +25% ordering fee for pieces the shop almost always has, up to +100% for the rarest, based on how often the shop really stocks each piece. Items cost more to order: +50% for a trader's common stock, +150% for its rare stock.
 - **Rarer things take longer:** 1-2 in-game days, plus up to 2 days for the rarest.
