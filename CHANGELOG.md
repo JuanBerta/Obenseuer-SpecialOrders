@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+- Fixed: Welhö stayed at the counter after a special order. The option now leaves the conversation like goodbye does, then opens the catalogue.
+- Corner Shops support: its vendors take special orders for their stock list items.
+- No special order option for shops with nothing to order.
+
 ## 1.0.5
 - Type the amount of an item to order, or use - and + (Shift for steps of 10) and MAX. Up to 100 per order by default (setting MaxItemsPerOrder, up to 9999).
 

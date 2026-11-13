@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -17,7 +18,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.5")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.6")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
@@ -132,6 +133,16 @@ namespace SpecialOrdersMod
 			Window.SetOpen(true);
 		}
 
+		// Whether the shop's catalogue has anything (the window isn't open while you talk, so the list can be reused).
+		internal static bool HasOffers(object shop)
+		{
+			if (Window.Open) return true;
+			RefreshOffers(shop);
+			bool any = Offers.Count > 0;
+			Offers.Clear(); ShopName = null; ShopKey = null;
+			return any;
+		}
+
 		internal static bool AllowsFurniture { get { return Kinds.Value != OrderKinds.Items; } }
 		internal static bool AllowsItems { get { return Kinds.Value != OrderKinds.Furniture; } }
 
@@ -208,9 +219,14 @@ namespace SpecialOrdersMod
 			Storage st = Traverse.Create(trade).Field("storage").GetValue<Storage>();
 			ShopName = !string.IsNullOrEmpty(trade.title) ? trade.title : (st != null && !string.IsNullOrEmpty(st.title) ? st.title : trade.name);
 			ShopKey = trade.gameObject.scene.name + "/" + ShopName;
-			if (st == null || string.IsNullOrEmpty(st.itemSpawnCategory) || StorageSpawnCategoryDatabase.instance == null) return;
-			StorageSpawnCategory cat = StorageSpawnCategoryDatabase.instance.FetchStorageSpawnCategory(st.itemSpawnCategory);
-			if (cat == null) return;
+			List<Item> corner = CornerShopItems(trade);
+			StorageSpawnCategory cat = null;
+			if (corner == null)
+			{
+				if (st == null || string.IsNullOrEmpty(st.itemSpawnCategory) || StorageSpawnCategoryDatabase.instance == null) return;
+				cat = StorageSpawnCategoryDatabase.instance.FetchStorageSpawnCategory(st.itemSpawnCategory);
+				if (cat == null) return;
+			}
 			float disc = Discount();
 			bool rm = trade.purchasePriceMode == Trade.PriceMode.OnlyRM;
 			var seen = new HashSet<int>();
@@ -235,8 +251,48 @@ namespace SpecialOrdersMod
 					Offers.Add(o);
 				}
 			};
+			if (corner != null) { add(corner.Select(i => i.ID).ToList(), false); return; }
 			add(cat.ItemCommon, false);
 			add(cat.ItemRare, true);
+		}
+
+		// ---- Corner Shops (the hotel and motel keepers' shops from that mod) ----
+
+		private static MethodInfo cornerShopFor, cornerStock, cornerIs;
+		private static bool cornerLooked;
+
+		private static bool CornerShops()
+		{
+			if (!cornerLooked)
+			{
+				cornerLooked = true;
+				Type t = AccessTools.TypeByName("CornerShopsMod.CornerShopsPlugin");
+				if (t != null)
+				{
+					cornerShopFor = AccessTools.Method(t, "ShopFor", new[] { typeof(string) });
+					cornerStock = AccessTools.Method(t, "StockItems");
+					cornerIs = AccessTools.Method(t, "IsCornerShop", new[] { typeof(Trade) });
+				}
+			}
+			return cornerShopFor != null && cornerStock != null && cornerIs != null;
+		}
+
+		internal static Trade CornerShopFor(string npcName)
+		{
+			if (string.IsNullOrEmpty(npcName) || !CornerShops()) return null;
+			try { return cornerShopFor.Invoke(null, new object[] { npcName }) as Trade; } catch (Exception) { return null; }
+		}
+
+		// The corner shop's stock list, or null when the trade isn't a corner shop.
+		private static List<Item> CornerShopItems(Trade trade)
+		{
+			if (trade == null || !CornerShops()) return null;
+			try
+			{
+				if (!(bool)cornerIs.Invoke(null, new object[] { trade })) return null;
+				return cornerStock.Invoke(null, null) as List<Item> ?? new List<Item>();
+			}
+			catch (Exception) { return null; }
 		}
 
 		// ---- Orders on the way (read from the game's own mail queue) ----
@@ -404,6 +460,7 @@ namespace SpecialOrdersMod
 
 		private void Update()
 		{
+			try { Talk.Tick(); } catch (Exception) { }
 			try
 			{
 				if (!InGame) { if (Window.Open) Window.SetOpen(false); return; }

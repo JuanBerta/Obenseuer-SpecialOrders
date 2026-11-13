@@ -1,6 +1,15 @@
 === SHORT DESCRIPTION ===
 Order furniture and items a shop doesn't have in stock, and get them delivered a few days later. Ask the shopkeeper, pick from everything they can stock, pay now or by invoice. Rarer things cost more and take longer.
 
+=== FILE DESCRIPTION ===
+Obenseuer-SpecialOrders-v1.0.6.rar : Special Orders 1.0.6 for BepInEx 6. Extract into the Obenseuer folder.
+
+=== CHANGELOG (Nexus "Changelogs" tab) ===
+1.0.6
+- Fixed: placing a special order with Welhö left Welhö standing at the counter. The option now ends the conversation the way saying goodbye does, so the shopkeeper's own exit runs; the catalogue opens right after.
+- New: order from Corner Shops (if installed). Arvid Vinter, Carl Hagen and Joran Kallio take special orders for anything on their stock list (empty envelopes, paper, stamps, food...), delivered by mail.
+- The special order option only appears when that shop has something to order.
+
 === FULL DESCRIPTION (BBCode) ===
 [size=5][b]Special Orders[/b][/size]
 No more waiting for a restock to finally drop that Malter or Biogas Reactor. Order what a shop doesn't have in stock right now, and get it delivered a few days later.
@@ -8,6 +17,7 @@ No more waiting for a restock to finally drop that Malter or Biogas Reactor. Ord
 [size=4][b]Features[/b][/size]
 [list]
 [*][b]Ask the shopkeeper.[/b] Talk to a trader or the person at a furniture shop and pick [i]"I'd like to place a special order."[/i] The order catalogue opens with everything that shop [b]can[/b] stock, including what isn't in stock now. Only that shop's own lists, so you still go to the right merchant.
+[*][b]Corner Shops too[/b] (optional mod): the hotel and motel keepers take orders for anything they stock, so you can get 50 empty envelopes at once.
 [*][b]Market stalls and shop counters too:[/b] they have no conversation of their own, so using one now asks whether you want to trade, place a special order, or say goodbye.
 [*][b]Furniture, items, or both:[/b] choose in the settings what can be ordered. Furniture comes from furniture shops, items from traders.
 [*][b]Rarer things cost more.[/b] Furniture: a +25% ordering fee for pieces the shop almost always has, up to +100% for the rarest, based on how often the shop really stocks each piece. Items cost more to order: +50% for a trader's common stock, +150% for its rare stock.

@@ -16,6 +16,29 @@ namespace SpecialOrdersMod
 	{
 		private static Trade talkingTrade;          // the trader whose conversation registered "StartTrade"
 		private static readonly Dictionary<Response, object> ours = new Dictionary<Response, object>();
+		private static readonly Dictionary<Response, Response> leaveWith = new Dictionary<Response, Response>();
+		private static readonly Regex LeaveWords = new Regex(@"\b(bye|goodbye|leave|leaving|later|never ?mind|nothing|no thanks|see you|go now|have to go|i'?ll go|farewell)\b", RegexOptions.IgnoreCase);
+
+		// The shop to open once the conversation has ended the normal way.
+		internal static object PendingShop;
+
+		// The option the player would pick to leave: a goodbye-like line, else the last option if it doesn't trade.
+		private static Response LeaveResponse(Response[] responses)
+		{
+			Response last = null;
+			foreach (Response r in responses)
+			{
+				if (r == null || ours.ContainsKey(r)) continue;
+				string text = r.formattedText != null ? r.formattedText.text : "";
+				if (!string.IsNullOrEmpty(text) && LeaveWords.IsMatch(text)) return r;
+				last = r;
+			}
+			if (last == null) return null;
+			string script = last.destinationEntry != null ? last.destinationEntry.userScript : null;
+			string lt = last.formattedText != null ? last.formattedText.text : "";
+			if ((!string.IsNullOrEmpty(script) && script.IndexOf("StartTrade", StringComparison.Ordinal) >= 0) || ShopWords.IsMatch(lt ?? "")) return null;
+			return last;
+		}
 		private static readonly Regex ShopWords = new Regex(@"\b(trad|buy|shop|sell|sale|goods|ware|furnit|brows|look around|what do you have|see what|merchandise|stock)\w*", RegexOptions.IgnoreCase);
 
 		[HarmonyPatch(typeof(Trade), "RegisterFunction")]
@@ -47,6 +70,11 @@ namespace SpecialOrdersMod
 				}
 			}
 			catch (Exception) { }
+			if (SpecialOrdersPlugin.AllowsItems)
+			{
+				Trade corner = SpecialOrdersPlugin.CornerShopFor(full) ?? SpecialOrdersPlugin.CornerShopFor(first);
+				if (corner != null) { why = "corner shop"; return corner; }
+			}
 			Vector3 me = PlayerLocator.instance != null ? PlayerLocator.instance.transform.position : (npc != null ? npc.position : Vector3.zero);
 			Trade bestTrade = null; float tradeD = float.MaxValue;
 			if (SpecialOrdersPlugin.AllowsItems)
@@ -144,10 +172,16 @@ namespace SpecialOrdersMod
 				foreach (Response r in state.pcResponses) if (r != null && ours.ContainsKey(r)) return;   // already added
 				bool shopMenu = LooksLikeShopMenu(state.pcResponses);
 				if (!shopMenu && menusThisConversation > 1) return;   // the first menu, or one about trading
-				if (shopThisConversation == null)
+				if (shopThisConversation == null && !shopLooked)
 				{
 					string why;
 					shopThisConversation = ShopOfConversant(out why);
+					// No option for a shop with nothing to order (like a mod's corner shop with a fixed daily stock).
+					if (shopThisConversation != null && !SpecialOrdersPlugin.HasOffers(shopThisConversation))
+					{
+						why = ShopLabel(shopThisConversation) + " has nothing to order";
+						shopThisConversation = null;
+					}
 					if (!shopLooked || shopThisConversation != null)
 						SpecialOrdersPlugin.Log("Conversation: " + (shopThisConversation == null ? "no shop (" + why + ")" : "shop " + ShopLabel(shopThisConversation) + " (" + why + ")"));
 					shopLooked = true;
@@ -156,6 +190,8 @@ namespace SpecialOrdersMod
 				if (shop == null) return;
 				var response = new Response(new FormattedText(SpecialOrdersPlugin.OptionText.Value), state.pcResponses[state.pcResponses.Length - 1].destinationEntry, true);
 				ours[response] = shop;
+				Response leave = LeaveResponse(state.pcResponses);
+				if (leave != null) leaveWith[response] = leave;
 				var list = new List<Response>(state.pcResponses);
 				// before a goodbye-style last option, otherwise at the end
 				list.Insert(Mathf.Max(0, list.Count - 1), response);
@@ -166,11 +202,25 @@ namespace SpecialOrdersMod
 
 		[HarmonyPatch(typeof(ConversationController), "OnSelectedResponse")]
 		[HarmonyPrefix]
-		private static bool Selected(SelectedResponseEventArgs e)
+		private static bool Selected(ConversationController __instance, object sender, SelectedResponseEventArgs e)
 		{
 			object shop;
 			if (e == null || e.response == null || !ours.TryGetValue(e.response, out shop)) return true;
-			ours.Clear();
+			Response leave;
+			leaveWith.TryGetValue(e.response, out leave);
+			ours.Clear(); leaveWith.Clear();
+			// End the conversation the way the player leaving would, so the shopkeeper's own script runs (Welhö
+			// goes back inside when you say goodbye); the catalogue opens once it's over.
+			if (leave != null)
+			{
+				try
+				{
+					PendingShop = shop;
+					__instance.OnSelectedResponse(sender, new SelectedResponseEventArgs(leave));
+					return false;
+				}
+				catch (Exception ex) { SpecialOrdersPlugin.Warn("Leaving the conversation: " + ex.Message); PendingShop = null; }
+			}
 			try { DialogueManager.StopConversation(); } catch (Exception) { }
 			SpecialOrdersPlugin.OpenFor(shop);
 			return false;
@@ -178,6 +228,17 @@ namespace SpecialOrdersMod
 
 		[HarmonyPatch(typeof(PixelCrushers.DialogueSystem.DialogueSystemController), "StartConversation", new Type[] { typeof(string), typeof(Transform), typeof(Transform), typeof(int), typeof(IDialogueUI) })]
 		[HarmonyPrefix]
-		private static void Start() { menusThisConversation = 0; ours.Clear(); }
+		private static void Start() { menusThisConversation = 0; ours.Clear(); leaveWith.Clear(); }
+
+		// Called every frame: opens the catalogue picked in a conversation once that conversation has ended.
+		internal static void Tick()
+		{
+			if (PendingShop == null) return;
+			bool active = true;
+			try { active = DialogueManager.isConversationActive; } catch (Exception) { active = false; }
+			if (active) return;
+			object shop = PendingShop; PendingShop = null;
+			SpecialOrdersPlugin.OpenFor(shop);
+		}
 	}
 }
