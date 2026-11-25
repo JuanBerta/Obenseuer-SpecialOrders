@@ -465,6 +465,7 @@ namespace SpecialOrdersMod
 			try
 			{
 				if (!InGame) { if (Window.Open) Window.SetOpen(false); return; }
+				if (Time.unscaledTime > nextCap) { nextCap = Time.unscaledTime + 5f; CapOpenOrders(); }
 				if (OrdersKey.Value.MainKey != KeyCode.None && OrdersKey.Value.IsDown())
 				{
 					if (Window.Open) Window.SetOpen(false);
@@ -473,6 +474,28 @@ namespace SpecialOrdersMod
 				else if (Window.Open && Input.GetKeyDown(KeyCode.Escape)) Window.CloseLater = true;
 			}
 			catch (Exception e) { Warn("Special Orders: " + e.Message); }
+		}
+
+		private static float nextCap;
+
+		/// <summary>Orders placed earlier (or under old settings) that still have more than MaxDeliveryDays to go are brought down to it.</summary>
+		private static void CapOpenOrders()
+		{
+			try
+			{
+				var mc = MailController.instance;
+				if (mc == null) return;
+				int cap = Mathf.Max(60, Mathf.RoundToInt(MaxDeliveryDays.Value * 86400f));
+				int n = 0;
+				foreach (var kv in mc.unprocessedMail)
+				{
+					var m = kv.Key; var t = kv.Value;
+					if (m == null || t == null || m.mailName == null || !m.mailName.StartsWith(MailPrefix)) continue;
+					if (t.remainingInSeconds > cap) { t.remainingInSeconds = cap; n++; }
+				}
+				if (n > 0) Log("Special Orders: shortened " + n + " order(s) already on the way to at most " + MaxDeliveryDays.Value + " day(s).");
+			}
+			catch (Exception) { }
 		}
 
 		private void LateUpdate() { Window.LateTick(); }
