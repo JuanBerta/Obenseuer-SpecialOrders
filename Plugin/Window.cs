@@ -242,6 +242,8 @@ namespace SpecialOrdersMod
 			else Choose(() => { });
 		}
 
+		private static Vector2 scrollOrders;
+
 		private static readonly Dictionary<string, int> amounts = new Dictionary<string, int>();
 		private static readonly Dictionary<string, string> amountText = new Dictionary<string, string>();
 
@@ -252,6 +254,9 @@ namespace SpecialOrdersMod
 
 			GUILayout.Label(Spaced("On the way") + "   (" + onTheWay.Count + ")", sSection);
 			if (onTheWay.Count == 0) GUILayout.Label("No orders on the way.", sHint);
+			// Three orders show at a time; more scroll inside their own box so the catalogue below stays in reach.
+			bool boxed = onTheWay.Count > 3;
+			if (boxed) scrollOrders = GUILayout.BeginScrollView(scrollOrders, GUILayout.Height(3 * 70f));
 			foreach (var o in onTheWay)
 			{
 				GUILayout.BeginVertical(sCard);
@@ -259,6 +264,7 @@ namespace SpecialOrdersMod
 				GUILayout.Label((o.Arrived ? "<b>Arrived:</b> pick it up at your mailbox or parcel locker" : "Arrives in " + SpecialOrdersPlugin.When(o.Minutes)) + (o.Shop.Length > 0 ? "  ·  from " + o.Shop : ""), sText);
 				GUILayout.EndVertical();
 			}
+			if (boxed) GUILayout.EndScrollView();
 
 			if (!atShop)
 			{

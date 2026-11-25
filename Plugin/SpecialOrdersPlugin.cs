@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -18,7 +18,7 @@ namespace SpecialOrdersMod
 	/// Only what that shop can stock (its own lists). Rarer things cost more and take longer. Delivery uses the
 	/// game's own mail (mailbox or parcel locker), with the game's saved timers. Pay up front or by invoice.
 	/// </summary>
-	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.6")]
+	[BepInPlugin("JuanBerta.Obenseuer.SpecialOrders", "Special Orders", "1.0.7")]
 	public class SpecialOrdersPlugin : BaseUnityPlugin
 	{
 		internal static SpecialOrdersPlugin Instance;
@@ -33,7 +33,7 @@ namespace SpecialOrdersMod
 		internal static ConfigEntry<DeliverTo> FurnitureTo;
 		internal static ConfigEntry<DeliverTo> ItemsTo;
 		internal static ConfigEntry<float> FurnitureMinFee, FurnitureMaxFee, ItemCommonFee, ItemRareFee, InvoiceExtraFee;
-		internal static ConfigEntry<float> MinDays, MaxDays, RareExtraDays;
+		internal static ConfigEntry<float> MinDays, MaxDays, RareExtraDays, MaxDeliveryDays;
 		internal static ConfigEntry<int> InvoiceDays, MaxOpenOrdersPerShop, MaxItemAmount;
 		internal static ConfigEntry<bool> HagglingDiscount;
 		internal static ConfigEntry<string> OptionText;
@@ -65,6 +65,7 @@ namespace SpecialOrdersMod
 			MaxItemAmount = Config.Bind("Fees", "MaxItemsPerOrder", 100, D("Most items of one kind in one order. Type the amount in the box, use - and + (Shift for steps of 10), or MAX.", 80, new AcceptableValueRange<int>(1, 9999)));
 			MinDays = Config.Bind("Delivery", "MinDays", 1f, D("Fewest in-game days for a delivery.", 100, new AcceptableValueRange<float>(0f, 14f)));
 			MaxDays = Config.Bind("Delivery", "MaxDays", 2f, D("Most in-game days for a common thing.", 95, new AcceptableValueRange<float>(0f, 14f)));
+			MaxDeliveryDays = Config.Bind("Delivery", "MaxDeliveryDays", 1f, D("No order takes longer than this many in-game days, whatever the other delivery settings say (1 = at most one day).", 100, new AcceptableValueRange<float>(0.05f, 14f)));
 			RareExtraDays = Config.Bind("Delivery", "RareExtraDays", 2f, D("Extra days for the rarest things (scaled by rarity).", 90, new AcceptableValueRange<float>(0f, 14f)));
 			FurnitureTo = Config.Bind("Delivery", "DeliverFurnitureTo", DeliverTo.Mailbox, D("Where ordered furniture arrives: your mailbox or the parcel locker.", 85));
 			ItemsTo = Config.Bind("Delivery", "DeliverItemsTo", DeliverTo.Mailbox, D("Where ordered items arrive: your mailbox or the parcel locker.", 80));
@@ -209,7 +210,7 @@ namespace SpecialOrdersMod
 				{
 					Name = f.title, Furniture = f, StockChance = chance, Rare = chance < 0.35f, Fee = fee,
 					Oc = Mathf.CeilToInt(shop.GetOcBuyPriceOf(f) * mult), Rm = Mathf.Round(shop.GetRmBuyPriceOf(f) * mult * 100f) / 100f,
-					Days = Mathf.Lerp(MinDays.Value, Mathf.Max(MinDays.Value, MaxDays.Value), 0.5f) + RareExtraDays.Value * (1f - chance)
+					Days = Mathf.Min(MaxDeliveryDays.Value, Mathf.Lerp(MinDays.Value, Mathf.Max(MinDays.Value, MaxDays.Value), 0.5f) + RareExtraDays.Value * (1f - chance))
 				});
 			}
 		}
@@ -244,7 +245,7 @@ namespace SpecialOrdersMod
 					var o = new Offer
 					{
 						Name = it.Title, Item = it, Rare = rare, Fee = fee, StockChance = rare ? 0.2f : 0.8f,
-						Days = Mathf.Lerp(MinDays.Value, Mathf.Max(MinDays.Value, MaxDays.Value), 0.5f) + (rare ? RareExtraDays.Value : 0f)
+						Days = Mathf.Min(MaxDeliveryDays.Value, Mathf.Lerp(MinDays.Value, Mathf.Max(MinDays.Value, MaxDays.Value), 0.5f) + (rare ? RareExtraDays.Value : 0f))
 					};
 					if (rm) o.Rm = Mathf.Max(0.01f, Mathf.Round(Money.instance.OcToRmConvert(price) * 100f) / 100f);
 					else o.Oc = Mathf.Max(1, Mathf.CeilToInt(price));
@@ -398,7 +399,7 @@ namespace SpecialOrdersMod
 				if (rm > 0f) Money.instance.RemoveMoney(rm, Money.Currency.RM);
 			}
 
-			float days = Mathf.Max(0.05f, o.Days + UnityEngine.Random.Range(-0.25f, 0.25f));
+			float days = Mathf.Clamp(o.Days + UnityEngine.Random.Range(-0.25f, 0.25f), 0.05f, MaxDeliveryDays.Value);
 			var delay = new TimeAndDay { hours = Mathf.Floor(days * 24f), minutes = Mathf.Round((days * 24f - Mathf.Floor(days * 24f)) * 60f) };
 			string what = o.Item != null && amount > 1 ? o.Name + " x" + amount : o.Name;
 			string mailName = MailPrefix + ": " + what + " (from " + ShopName + ")";

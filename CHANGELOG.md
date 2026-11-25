@@ -1,7 +1,11 @@
-# Changelog
+﻿# Changelog
+
+## 1.0.7
+- Orders on the way: only 3 show at a time and the rest scroll inside their own box, so they no longer push the catalogue off the screen.
+- No order takes longer than one in-game day now (new setting MaxDeliveryDays, default 1), even with older delivery settings.
 
 ## 1.0.6
-- Fixed: Welhö stayed at the counter after a special order. The option now leaves the conversation like goodbye does, then opens the catalogue.
+- Fixed: WelhÃ¶ stayed at the counter after a special order. The option now leaves the conversation like goodbye does, then opens the catalogue.
 - Corner Shops support: its vendors take special orders for their stock list items.
 - No special order option for shops with nothing to order.
 
